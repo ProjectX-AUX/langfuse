@@ -29,12 +29,16 @@ import { trpcErrorToast } from "@/src/utils/trpcErrorToast";
 setUpSuperjson();
 
 const getBaseUrl = () => {
+  // 在浏览器环境下，自动使用当前域名
+  // 这样通过 Whistle 代理访问时，会自动使用 langfuse.ailoha.net
   const hostname =
     typeof window !== "undefined"
       ? window.location.origin
-      : process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : `http://localhost:${process.env.PORT ?? 3000}`;
+      : env.NEXT_PUBLIC_BASE_URL // SSR 时使用环境变量
+        ? env.NEXT_PUBLIC_BASE_URL
+        : process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : `http://localhost:${process.env.PORT ?? 3000}`;
 
   return `${hostname}${env.NEXT_PUBLIC_BASE_PATH ?? ""}`;
 };

@@ -105,6 +105,15 @@ const EnvSchema = z.object({
     .default("false"),
   LANGFUSE_S3_MEDIA_UPLOAD_SSE: z.enum(["AES256", "aws:kms"]).optional(),
   LANGFUSE_S3_MEDIA_UPLOAD_SSE_KMS_KEY_ID: z.string().optional(),
+  LANGFUSE_S3_EVALUATION_MEDIA_BUCKET: z.string().optional(),
+  LANGFUSE_S3_EVALUATION_MEDIA_PREFIX: z.string().default(""),
+  LANGFUSE_S3_EVALUATION_MEDIA_REGION: z.string().optional(),
+  LANGFUSE_S3_EVALUATION_MEDIA_ENDPOINT: z.string().optional(),
+  LANGFUSE_S3_EVALUATION_MEDIA_ACCESS_KEY_ID: z.string().optional(),
+  LANGFUSE_S3_EVALUATION_MEDIA_SECRET_ACCESS_KEY: z.string().optional(),
+  LANGFUSE_S3_EVALUATION_MEDIA_FORCE_PATH_STYLE: z
+    .enum(["true", "false"])
+    .default("false"),
   LANGFUSE_USE_AZURE_BLOB: z.enum(["true", "false"]).default("false"),
   LANGFUSE_AZURE_SKIP_CONTAINER_CHECK: z
     .enum(["true", "false"])
