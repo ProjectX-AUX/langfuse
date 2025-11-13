@@ -2,6 +2,8 @@ import { api } from "@/src/utils/api";
 import { cn } from "@/src/utils/tailwind";
 import { MemoizedIOTableCell } from "@/src/components/ui/IOTableCell";
 import { IOTableCell } from "@/src/components/ui/IOTableCell";
+import { MemoizedEvaluationInputCell } from "./EvaluationInputCell";
+import { parseEvaluationInput } from "../utils/parseEvaluationInput";
 
 export const DatasetItemIOCell = ({
   projectId,
@@ -94,6 +96,79 @@ export const TraceObservationIOCell = ({
       isLoading={
         (!!observationId ? observation.isLoading : trace.isLoading) || !data
       }
+      data={io === "output" ? data?.output : data?.input}
+      className={cn(io === "output" && "bg-accent-light-green")}
+      singleLine={singleLine}
+    />
+  );
+};
+
+export const TraceObservationIOCellWithAttachment = ({
+  traceId,
+  projectId,
+  observationId,
+  io,
+  fromTimestamp,
+  singleLine = false,
+}: {
+  traceId: string;
+  projectId: string;
+  observationId?: string;
+  io: "input" | "output";
+  fromTimestamp: Date;
+  singleLine?: boolean;
+}) => {
+  // Subtract 1 day from the fromTimestamp as a buffer in case the trace happened before the run
+  const fromTimestampModified = new Date(
+    fromTimestamp.getTime() - 24 * 60 * 60 * 1000,
+  );
+
+  // conditionally fetch the trace or observation depending on the presence of observationId
+  const trace = api.traces.byId.useQuery(
+    { traceId, projectId, fromTimestamp: fromTimestampModified },
+    {
+      enabled: observationId === undefined,
+      refetchOnMount: false, // prevents refetching loops
+      staleTime: 60 * 1000, // 1 minute
+    },
+  );
+  const observation = api.observations.byId.useQuery(
+    {
+      observationId: observationId as string, // disabled when observationId is undefined
+      projectId,
+      traceId,
+    },
+    {
+      enabled: observationId !== undefined,
+      refetchOnMount: false, // prevents refetching loops
+      staleTime: 60 * 1000, // 1 minute
+    },
+  );
+
+  const data = observationId === undefined ? trace.data : observation.data;
+  const isLoading =
+    (!!!observationId ? trace.isLoading : observation.isLoading) || !data;
+
+  // For input, check if it's evaluation input structure and use EvaluationInputCell
+  if (io === "input" && data?.input) {
+    const parsed = parseEvaluationInput(data.input);
+
+    // If has media content, use EvaluationInputCell
+    if (parsed.hasMediaContent) {
+      return (
+        <MemoizedEvaluationInputCell
+          data={data.input}
+          projectId={projectId}
+          singleLine={singleLine}
+        />
+      );
+    }
+  }
+
+  // For output or non-evaluation input, use standard IOTableCell
+  return (
+    <MemoizedIOTableCell
+      isLoading={isLoading}
       data={io === "output" ? data?.output : data?.input}
       className={cn(io === "output" && "bg-accent-light-green")}
       singleLine={singleLine}
