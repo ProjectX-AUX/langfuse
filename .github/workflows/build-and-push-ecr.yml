@@ -1,0 +1,92 @@
+name: Build and Push to AWS ECR
+
+on:
+  push:
+    tags:
+      - 'V[0-9]+.[0-9]+.[0-9]+'  # Matches V0.0.1, V1.2.3, etc.
+    branches:
+      - dev/ailoha  # Only trigger on dev/ailoha branch
+  workflow_dispatch:  # Allow manual trigger
+
+concurrency:
+  group: ecr-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    # Only run if tag is pushed on dev/ailoha branch
+    if: startsWith(github.ref, 'refs/tags/V') && github.event.base_ref == 'refs/heads/dev/ailoha'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract tag name
+        id: extract_tag
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Set NEXT_PUBLIC_BUILD_ID
+        run: echo "NEXT_PUBLIC_BUILD_ID=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+
+      - name: Build and push Web image
+        env:
+          REGISTRY: 220934191999.dkr.ecr.ap-southeast-1.amazonaws.com
+          REPOSITORY: ailoha/langfuse
+          TAG: ${{ steps.extract_tag.outputs.TAG }}
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $REGISTRY/$REPOSITORY:web-$TAG \
+            -t $REGISTRY/$REPOSITORY:web-latest \
+            -f ./web/Dockerfile \
+            --build-arg NEXT_PUBLIC_BUILD_ID=${{ github.sha }} \
+            --push \
+            .
+
+      - name: Build and push Worker image
+        env:
+          REGISTRY: 220934191999.dkr.ecr.ap-southeast-1.amazonaws.com
+          REPOSITORY: ailoha/langfuse
+          TAG: ${{ steps.extract_tag.outputs.TAG }}
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $REGISTRY/$REPOSITORY:worker-$TAG \
+            -t $REGISTRY/$REPOSITORY:worker-latest \
+            -f ./worker/Dockerfile \
+            --build-arg NEXT_PUBLIC_BUILD_ID=${{ github.sha }} \
+            --push \
+            .
+
+      - name: Output image URIs
+        env:
+          TAG: ${{ steps.extract_tag.outputs.TAG }}
+        run: |
+          echo "✅ Images pushed successfully!"
+          echo ""
+          echo "Web image:"
+          echo "  - 220934191999.dkr.ecr.ap-southeast-1.amazonaws.com/ailoha/langfuse:web-$TAG"
+          echo "  - 220934191999.dkr.ecr.ap-southeast-1.amazonaws.com/ailoha/langfuse:web-latest"
+          echo ""
+          echo "Worker image:"
+          echo "  - 220934191999.dkr.ecr.ap-southeast-1.amazonaws.com/ailoha/langfuse:worker-$TAG"
+          echo "  - 220934191999.dkr.ecr.ap-southeast-1.amazonaws.com/ailoha/langfuse:worker-latest"
