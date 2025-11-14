@@ -3,7 +3,6 @@ import { type Prisma, deepParseJson } from "@langfuse/shared";
 import { cn } from "@/src/utils/tailwind";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/src/components/ui/button";
-import { Fragment } from "react";
 import type { z } from "zod/v4";
 import type {
   ChatMlArraySchema,
@@ -32,6 +31,8 @@ import { ToolCallDefinitionCard } from "@/src/components/trace/ToolCallDefinitio
 import { ToolCallInvocationsView } from "@/src/components/trace/ToolCallInvocationsView";
 import { ListChevronsDownUp, ListChevronsUpDown } from "lucide-react";
 import { copyTextToClipboard } from "@/src/utils/clipboard";
+import { parseEvaluationInput } from "@/src/features/datasets/utils/parseEvaluationInput";
+import { MemoizedEvaluationInputCell } from "@/src/features/datasets/components/EvaluationInputCell";
 
 export const IOPreview: React.FC<{
   input?: Prisma.JsonValue;
@@ -53,6 +54,7 @@ export const IOPreview: React.FC<{
   onOutputExpansionChange?: (
     expansion: Record<string, boolean> | boolean,
   ) => void;
+  projectId?: string;
 }> = ({
   isLoading = false,
   hideIfNull = false,
@@ -65,6 +67,7 @@ export const IOPreview: React.FC<{
   onInputExpansionChange,
   onOutputExpansionChange,
   setIsPrettyViewAvailable,
+  projectId,
   ...props
 }) => {
   const [localCurrentView, setLocalCurrentView] = useLocalStorage<
@@ -77,6 +80,12 @@ export const IOPreview: React.FC<{
   const metadata = deepParseJson(props.metadata);
   const [compensateScrollRef, startPreserveScroll] =
     usePreserveRelativeScroll<HTMLDivElement>([selectedView]);
+
+  // Check if input matches evaluation input structure with media content
+  const parsedEvaluationInput = useMemo(
+    () => parseEvaluationInput(input),
+    [input],
+  );
 
   const {
     canDisplayAsChat,
@@ -252,15 +261,25 @@ export const IOPreview: React.FC<{
             ) : (
               <>
                 {!(hideIfNull && !input) && !hideInput ? (
-                  <PrettyJsonView
-                    title="Input"
-                    json={input ?? null}
-                    isLoading={isLoading}
-                    media={media?.filter((m) => m.field === "input") ?? []}
-                    currentView={selectedView}
-                    externalExpansionState={inputExpansionState}
-                    onExternalExpansionChange={onInputExpansionChange}
-                  />
+                  parsedEvaluationInput.hasMediaContent && projectId ? (
+                    <div>
+                      <div className="text-sm font-medium">Input</div>
+                      <MemoizedEvaluationInputCell
+                        data={input}
+                        projectId={projectId}
+                      />
+                    </div>
+                  ) : (
+                    <PrettyJsonView
+                      title="Input"
+                      json={input ?? null}
+                      isLoading={isLoading}
+                      media={media?.filter((m) => m.field === "input") ?? []}
+                      currentView={selectedView}
+                      externalExpansionState={inputExpansionState}
+                      onExternalExpansionChange={onInputExpansionChange}
+                    />
+                  )
                 ) : null}
                 {!(hideIfNull && !output) && !hideOutput ? (
                   <PrettyJsonView
@@ -280,15 +299,25 @@ export const IOPreview: React.FC<{
           {/* JSON view content */}
           <div style={{ display: selectedView === "json" ? "block" : "none" }}>
             {!(hideIfNull && !input) && !hideInput ? (
-              <PrettyJsonView
-                title="Input"
-                json={input ?? null}
-                isLoading={isLoading}
-                media={media?.filter((m) => m.field === "input") ?? []}
-                currentView={selectedView}
-                externalExpansionState={inputExpansionState}
-                onExternalExpansionChange={onInputExpansionChange}
-              />
+              parsedEvaluationInput.hasMediaContent && projectId ? (
+                <div>
+                  <div className="text-sm font-medium">Input</div>
+                  <MemoizedEvaluationInputCell
+                    data={input}
+                    projectId={projectId}
+                  />
+                </div>
+              ) : (
+                <PrettyJsonView
+                  title="Input"
+                  json={input ?? null}
+                  isLoading={isLoading}
+                  media={media?.filter((m) => m.field === "input") ?? []}
+                  currentView={selectedView}
+                  externalExpansionState={inputExpansionState}
+                  onExternalExpansionChange={onInputExpansionChange}
+                />
+              )
             ) : null}
             {!(hideIfNull && !output) && !hideOutput ? (
               <PrettyJsonView
@@ -306,15 +335,25 @@ export const IOPreview: React.FC<{
       ) : (
         <>
           {!(hideIfNull && !input) && !hideInput ? (
-            <PrettyJsonView
-              title="Input"
-              json={input ?? null}
-              isLoading={isLoading}
-              media={media?.filter((m) => m.field === "input") ?? []}
-              currentView={selectedView}
-              externalExpansionState={inputExpansionState}
-              onExternalExpansionChange={onInputExpansionChange}
-            />
+            parsedEvaluationInput.hasMediaContent && projectId ? (
+              <div>
+                <div className="text-sm font-medium">Input</div>
+                <MemoizedEvaluationInputCell
+                  data={input}
+                  projectId={projectId}
+                />
+              </div>
+            ) : (
+              <PrettyJsonView
+                title="Input"
+                json={input ?? null}
+                isLoading={isLoading}
+                media={media?.filter((m) => m.field === "input") ?? []}
+                currentView={selectedView}
+                externalExpansionState={inputExpansionState}
+                onExternalExpansionChange={onInputExpansionChange}
+              />
+            )
           ) : null}
           {!(hideIfNull && !output) && !hideOutput ? (
             <PrettyJsonView

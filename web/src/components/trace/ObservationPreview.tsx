@@ -440,6 +440,7 @@ export const ObservationPreview = ({
                   onOutputExpansionChange={(expansion) =>
                     setFieldExpansion("output", expansion)
                   }
+                  projectId={projectId}
                 />
               </div>
               <div>

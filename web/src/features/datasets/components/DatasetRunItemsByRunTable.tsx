@@ -16,7 +16,7 @@ import { Skeleton } from "@/src/components/ui/skeleton";
 import { scoreFilters } from "@/src/features/scores/lib/scoreColumns";
 import {
   DatasetItemIOCell,
-  TraceObservationIOCell,
+  TraceObservationIOCellWithAttachment,
 } from "@/src/features/datasets/components/DatasetIOCells";
 import { datasetRunItemsTableColsWithOptions } from "@langfuse/shared";
 import { convertRunItemToItemsByRunUiTableRow } from "@/src/features/datasets/lib/convertRunItemDataToUiTableRow";
@@ -192,7 +192,7 @@ export function DatasetRunItemsByRunTable(props: {
         const runAt: DatasetRunItemByRunRowData["runAt"] =
           row.getValue("runAt");
         return trace ? (
-          <TraceObservationIOCell
+          <TraceObservationIOCellWithAttachment
             traceId={trace.traceId}
             projectId={props.projectId}
             observationId={trace.observationId}
@@ -215,7 +215,7 @@ export function DatasetRunItemsByRunTable(props: {
         const runAt: DatasetRunItemByRunRowData["runAt"] =
           row.getValue("runAt");
         return trace ? (
-          <TraceObservationIOCell
+          <TraceObservationIOCellWithAttachment
             traceId={trace.traceId}
             projectId={props.projectId}
             observationId={trace.observationId}

@@ -193,8 +193,82 @@ export async function fetchLLMCompletion(
           ? message.content
           : safeStringify(message.content);
 
-      if (message.role === ChatMessageRole.User)
+      if (message.role === ChatMessageRole.User) {
+        // Check if message has images array (multimodal content)
+        const hasImages =
+          "images" in message &&
+          Array.isArray(message.images) &&
+          message.images.length > 0;
+
+        if (hasImages) {
+          // Bedrock uses a different format than OpenAI/Anthropic
+          const isBedrockProvider = modelParams.adapter === LLMAdapter.Bedrock;
+
+          // Build multimodal content array
+          const contentParts: any[] = [];
+
+          // Add text content if present
+          if (message.content) {
+            contentParts.push({
+              type: "text",
+              text: safeContent,
+            });
+          }
+
+          // Convert each image from ImageData format to LangChain format
+          for (const image of message.images as any[]) {
+            if (isBedrockProvider) {
+              // Bedrock via LangChain expects data URL format, not nested source object
+              if (image.content) {
+                const format =
+                  image.format || image.mime_type?.split("/")[1] || "jpeg";
+                const dataUrl = `data:image/${format};base64,${image.content}`;
+                contentParts.push({
+                  type: "image_url",
+                  image_url: {
+                    url: dataUrl,
+                  },
+                });
+              } else if (image.url) {
+                contentParts.push({
+                  type: "image_url",
+                  image_url: {
+                    url: image.url,
+                  },
+                });
+              }
+            } else {
+              // OpenAI/Anthropic format (standard image_url format)
+              let imageUrl: string | null = null;
+
+              if (image.content) {
+                // Base64 image - construct data URL
+                const format =
+                  image.format || image.mime_type?.split("/")[1] || "jpeg";
+                imageUrl = `data:image/${format};base64,${image.content}`;
+              } else if (image.url) {
+                // Direct URL
+                imageUrl = image.url;
+              }
+
+              if (imageUrl) {
+                contentParts.push({
+                  type: "image_url",
+                  image_url: {
+                    url: imageUrl,
+                    ...(image.detail && { detail: image.detail }),
+                  },
+                });
+              }
+            }
+          }
+
+          return new HumanMessage({ content: contentParts as any });
+        }
+
+        // No images, use string content
         return new HumanMessage(safeContent);
+      }
       if (
         message.role === ChatMessageRole.System ||
         message.role === ChatMessageRole.Developer

@@ -402,6 +402,7 @@ export const TracePreview = ({
                 onOutputExpansionChange={(expansion) =>
                   setFieldExpansion("output", expansion)
                 }
+                projectId={trace.projectId}
               />
 
               <div className="text-sm font-medium">{"Tags"}</div>

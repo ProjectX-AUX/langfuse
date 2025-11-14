@@ -1,6 +1,6 @@
 import { capitalize } from "lodash";
-import { GripVertical, MinusCircleIcon } from "lucide-react";
-import { memo, useState, useCallback } from "react";
+import { GripVertical, MinusCircleIcon, ImagePlus, X } from "lucide-react";
+import { memo, useState, useCallback, useRef } from "react";
 import {
   type ChatMessage,
   ChatMessageRole,
@@ -8,6 +8,7 @@ import {
   type ChatMessageWithId,
   type LLMToolCall,
   type PlaceholderMessage,
+  type ImageData,
 } from "@langfuse/shared";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent } from "@/src/components/ui/card";
@@ -24,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/src/components/ui/select";
+import { v4 as uuidv4 } from "uuid";
 
 type ChatMessageProps = Pick<
   MessagesContext,
@@ -275,6 +277,12 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({
             {message.type === ChatMessageType.AssistantToolCall && (
               <ToolCalls toolCalls={message.toolCalls as LLMToolCall[]} />
             )}
+            {message.type === ChatMessageType.User && (
+              <ImageUploadSection
+                message={message}
+                updateMessage={updateMessage}
+              />
+            )}
           </div>
           <Button
             variant="ghost"
@@ -313,3 +321,148 @@ const MemoizedEditor = memo(function MemoizedEditor(props: {
     />
   );
 });
+
+const ImageUploadSection: React.FC<{
+  message: ChatMessageWithId;
+  updateMessage: MessagesContext["updateMessage"];
+}> = ({ message, updateMessage }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const images = (message as any).images as ImageData[] | undefined;
+
+  const handleFileSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+
+      const newImages: ImageData[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith("image/")) continue;
+
+        try {
+          // Read file as base64
+          const base64 = await fileToBase64(file);
+          const format = file.type.split("/")[1] || "jpeg";
+
+          newImages.push({
+            id: uuidv4(),
+            url: null,
+            filepath: null,
+            content: base64,
+            format,
+            mime_type: file.type,
+            detail: null,
+            original_prompt: null,
+            revised_prompt: null,
+            alt_text: null,
+          });
+        } catch (error) {
+          console.error("Error reading file:", error);
+        }
+      }
+
+      if (newImages.length > 0) {
+        const currentImages = images || [];
+        updateMessage(
+          ChatMessageType.User,
+          message.id,
+          "images" as any,
+          [...currentImages, ...newImages] as any,
+        );
+      }
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    [images, message.id, updateMessage],
+  );
+
+  const handleRemoveImage = useCallback(
+    (imageId: string) => {
+      const currentImages = images || [];
+      const updatedImages = currentImages.filter((img) => img.id !== imageId);
+      updateMessage(
+        ChatMessageType.User,
+        message.id,
+        "images" as any,
+        updatedImages as any,
+      );
+    },
+    [images, message.id, updateMessage],
+  );
+
+  // Type guard to ensure message is a user message with images
+  if (message.type !== ChatMessageType.User) return null;
+
+  return (
+    <div className="mt-2 space-y-2">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+
+      {images && images.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {images.map((img) => (
+            <div
+              key={img.id}
+              className="group relative h-20 w-20 overflow-hidden rounded border"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={
+                  img.content
+                    ? `data:${img.mime_type || `image/${img.format}`};base64,${img.content}`
+                    : img.url || ""
+                }
+                alt={img.alt_text || "Uploaded image"}
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => handleRemoveImage(img.id)}
+                className="absolute right-0 top-0 rounded-bl bg-destructive p-0.5 text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                aria-label="Remove image"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => fileInputRef.current?.click()}
+        className="h-7 text-xs"
+      >
+        <ImagePlus className="mr-1 h-3 w-3" />
+        Add Image
+      </Button>
+    </div>
+  );
+};
+
+// Helper function to convert file to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      // Remove the data:image/...;base64, prefix
+      const base64Data = base64.split(",")[1];
+      resolve(base64Data);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};

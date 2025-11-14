@@ -154,10 +154,26 @@ export const DeveloperMessageSchema = z.object({
 });
 export type DeveloperMessage = z.infer<typeof DeveloperMessageSchema>;
 
+export const ImageDataSchema = z.object({
+  id: z.string(),
+  url: z.string().nullable().optional(),
+  filepath: z.string().nullable().optional(),
+  content: z.string().optional(), // base64 encoded image data
+  format: z.string().optional(), // e.g., "jpeg", "png"
+  mime_type: z.string().nullable().optional(),
+  detail: z.enum(["low", "high", "auto"]).nullable().optional(),
+  original_prompt: z.string().nullable().optional(),
+  revised_prompt: z.string().nullable().optional(),
+  alt_text: z.string().nullable().optional(),
+});
+export type ImageData = z.infer<typeof ImageDataSchema>;
+
 export const UserMessageSchema = z.object({
   type: z.literal(ChatMessageType.User),
   role: z.literal(ChatMessageRole.User),
   content: z.string(),
+  audio: z.array(z.any()).optional(), // audio array support
+  images: z.array(ImageDataSchema).optional(), // images array support
 });
 export type UserMessage = z.infer<typeof UserMessageSchema>;
 
