@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { api } from "@/src/utils/api";
 import {
   parseEvaluationInput,
@@ -8,7 +8,8 @@ import {
 import { ResizableImage } from "@/src/components/ui/resizable-image";
 import { JSONView } from "@/src/components/ui/CodeJsonViewer";
 import { cn } from "@/src/utils/tailwind";
-import { File, Loader2, AlertCircle } from "lucide-react";
+import { File, Loader2, AlertCircle, FileJson, ImageIcon } from "lucide-react";
+import { Button } from "@/src/components/ui/button";
 
 /**
  * EvaluationInputCell Component
@@ -31,6 +32,9 @@ export const EvaluationInputCell = ({
   className?: string;
   singleLine?: boolean;
 }) => {
+  // State to toggle between media view and JSON view
+  const [showJsonView, setShowJsonView] = useState(false);
+
   // Parse the input data
   const parsed = useMemo(() => parseEvaluationInput(data), [data]);
 
@@ -85,6 +89,34 @@ export const EvaluationInputCell = ({
     );
   }
 
+  // If user toggled to JSON view, show JSON
+  if (showJsonView) {
+    return (
+      <div className={cn("ph-no-capture space-y-2 rounded-sm p-2", className)}>
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-medium text-muted-foreground">
+            JSON View
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowJsonView(false)}
+            className="h-7 gap-1.5 text-xs"
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            Show Media
+          </Button>
+        </div>
+        <JSONView
+          json={data}
+          className="ph-no-capture w-full rounded-sm"
+          codeClassName="py-1 px-2 min-h-0 overflow-y-auto"
+          collapseStringsAfterLength={null}
+        />
+      </div>
+    );
+  }
+
   // Single line mode - just show truncated text
   if (singleLine) {
     const displayText = parsed.text || "[Media content - click to expand]";
@@ -103,6 +135,22 @@ export const EvaluationInputCell = ({
   // Full display mode
   return (
     <div className={cn("ph-no-capture space-y-3 rounded-sm p-2", className)}>
+      {/* Header with toggle button */}
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-medium text-muted-foreground">
+          Media View
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowJsonView(true)}
+          className="h-7 gap-1.5 text-xs"
+        >
+          <FileJson className="h-3.5 w-3.5" />
+          Show JSON
+        </Button>
+      </div>
+
       {/* Text Section */}
       {parsed.text && (
         <div className="space-y-1">
